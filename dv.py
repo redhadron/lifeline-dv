@@ -24,17 +24,24 @@ class Resource(Enum):
 
 class Engine:
 
-  def __init__(self, *, Isp_vacuum, thrust_kn, resource_flow_rates=None):
-    self.Isp_vacuum, self.thrust_kn = (Isp_vacuum, thrust_kn)
+  def __init__(self, *, Isp, thrust_kn, resource_flow_rates=None):
+    self.Isp, self.thrust_kn = (Isp, thrust_kn)
     self.resource_flow_rates = resource_flow_rates
     self._validate()
     
   def _validate(self):
-    raise NotImplementedError()
+    print("validate is not implemented for Engine")
     
   def get_mass_flow_rate(self):
-    raise NotImplementedError()
+    if self.resource_flow_rates is None:
+      raise ValueError("flow rates were not provided")
+    return sum(tonnage for resource, tonnage in self.resource_flow_rates)
 
+
+STOCK_ENGINES = {
+  "Terrier": Engine(Isp=345, thrust_kn=60, resource_flow_rates=((Resource.LIQUID_FUEL, 1.596),(Resource.OXIDIZER, 1.951))),
+  "Nerv": Engine(Isp=800, thrust_kn=60, resource_flow_rates=((Resource.LIQUID_FUEL, 1.53),)),
+}
 
 
 
