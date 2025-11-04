@@ -1,24 +1,41 @@
 
 import math
+from enum import Enum
 
 
-
-LFOX_RATIO_PARTS = (9,11)
-LFOX_COEFFICIENTS = tuple(item/sum(LFOX_RATIO_PARTS) for item in LFOX_RATIO_PARTS) 
+KSP_LFOX_RATIO_PARTS = (9,11)
+KSP_LFOX_COEFFICIENTS = tuple(item/sum(KSP_LFOX_RATIO_PARTS) for item in KSP_LFOX_RATIO_PARTS) 
 STANDARD_GRAVITY = 9.80665
 
 
-def tsiolkovsky(Isp, m0, mf):
+def tsiolkovsky(Isp, m0, mf) -> float:
   assert 0 < Isp
   assert 0 < mf < m0
   return Isp*STANDARD_GRAVITY*math.log(m0/mf)
 
 
+class Resource(Enum):
+  LIQUID_FUEL = "LIQUID_FUEL"
+  OXIDIZER = "OXIDIZER"
+  ORE = "ORE"
+  MONOPROPELLANT = "MONOPROPELLANT"
+  XENON_GAS = "XENON_GAS"
+  
+
 class Engine:
 
-  def __init__(self, *, Isp_vacuum, thrust_kn, flow_rates=None):
+  def __init__(self, *, Isp_vacuum, thrust_kn, resource_flow_rates=None):
     self.Isp_vacuum, self.thrust_kn = (Isp_vacuum, thrust_kn)
-    self.flow_rates = ...
+    self.resource_flow_rates = resource_flow_rates
+    self._validate()
+    
+  def _validate(self):
+    raise NotImplementedError()
+    
+  def get_mass_flow_rate(self):
+    raise NotImplementedError()
+
+
 
 
 class Ship:
@@ -49,17 +66,27 @@ class Ship:
       case "lfox":
         self.ore_tons, self.lf_tons, self.ox_tons = (
           self.ore_tons - ore_tons,
-          (self.lf_tons + ore_tons*LFOX_COEFFICIENTS[0]),
-          (self.ox_tons + ore_tons*LFOX_COEFFICIENTS[1]),
+          (self.lf_tons + ore_tons*KSP_LFOX_COEFFICIENTS[0]),
+          (self.ox_tons + ore_tons*KSP_LFOX_COEFFICIENTS[1]),
         )
       case _:
         raise ValueError(f"unknown mode {mode}")
     self._validate()
 
   
-  def burn(self, *, propellant_tons, Isp, mode):
-    assert 0 <= propellant_tons
-    assert 0 <= Isp
+  def burn(self, *, propellant_tons, engine) -> None:
+    if propellant_tons < 0:
+      raise ValueError()
+    if isinstance(engine, tuple):
+      if len(engine) != 2:
+        raise ValueError()
+      Isp, mode = engine
+    elif isinstance(engine, Engine):
+      raise NotImplementedError()
+    else:
+      raise TypeError("invalid engine or group of engines or something.")
+    if Isp < 0:
+      raise ValueError("Isp must be positive")
     match mode:
       case "lf":
         if propellant_tons > self.lf_tons:
