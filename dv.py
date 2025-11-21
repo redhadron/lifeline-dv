@@ -12,7 +12,7 @@ def tsiolkovsky(Isp, m0, mf) -> float:
   assert 0 < Isp
   assert 0 < mf < m0
   return Isp*STANDARD_GRAVITY*math.log(m0/mf)
-
+assert abs(tsiolkovsky(300, 2.0, 1.0) - 2039) < 1
 
 class Resource(Enum):
   LIQUID_FUEL = "LIQUID_FUEL"
@@ -26,11 +26,10 @@ class Engine:
 
   def __init__(self, *, Isp, thrust_kn, resource_flow_rates=None):
     self.Isp, self.thrust_kn = (Isp, thrust_kn)
+    assert isinstance(resource_flow_rates, dict)
     self.resource_flow_rates = resource_flow_rates
     
   def get_mass_flow_rate(self):
-    if self.resource_flow_rates is None:
-      raise ValueError("flow rates were not provided on Engine initialization.")
     return sum(self.resource_flow_rates.values()) # in tons
 
 
@@ -101,3 +100,11 @@ class Ship:
     raise NotImplementedError("resource consumption")
     
     self._validate()
+    
+_a = Ship(resource_tons={Resource.ORE:2, Resource.LIQUID_FUEL:0}, dry_mass=30)
+assert _a.get_mass() == 32
+_a.isru(ore_tons=0.9, mode="lf")
+assert _a.resource_tons[Resource.LIQUID_FUEL] == 0.9
+assert _a.resource_tons[Resource.ORE] == 1.1
+assert _a.get_mass() == 32
+del _a

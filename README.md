@@ -3,9 +3,10 @@ This is a python module to help calculate the available Δv for any spaceship ba
 I'll add instructions if anyone is interested!
 
 Todo:
--add validate method to engine.
--create engine block.
--split burn into burn and _burn.
--use the same format for resources in all arguments.
--add tests.
-  
+-add validate method to engine.  
+-create engine block.  
+-split burn into burn and _burn.  
+-add tests.  
+-add burn time calculations.  
+Done:  
+-use the same format for resources in all arguments.  
