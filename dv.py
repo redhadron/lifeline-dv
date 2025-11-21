@@ -31,7 +31,7 @@ class Engine:
   def get_mass_flow_rate(self):
     if self.resource_flow_rates is None:
       raise ValueError("flow rates were not provided on Engine initialization.")
-    return sum(tonnage for resource, tonnage in self.resource_flow_rates)
+    return sum(tons for resource, tons in self.resource_flow_rates)
 
 
 STOCK_ENGINES = {
@@ -90,18 +90,10 @@ class Ship:
       raise TypeError("invalid engine or group of engines or something.")
     if Isp < 0:
       raise ValueError("Isp must be positive")
-    match mode:
-      case "lf":
-        if propellant_tons > self.lf_tons:
-          raise ValueError("out of fuel.")
-        self.velocity, self.lf_tons = (
-          tsiolkovsky(Isp, self.get_mass(), self.get_mass()-propellant_tons),
-          self.lf_tons - propellant_tons,
-        )
-      case "ox":
-        raise NotImplementedError("what? an oxidizer-only engine?")
-      case "lfox":
-        raise NotImplementedError("unfinished code.")
-      case _:
-        raise ValueError(f"unknown mode {mode}")
+    raise NotImplementedError()
+  
+  def _burn(self, *, resource_tons: tuple[tuple[Resource, float]], Isp, resource_flow_rates=None):
+    propellantTonsUsed = sum(tons for resource, tons in resource_tons)
+    self.velocity = tsiolkovsky(Isp, self.get_mass(), self.get_mass()-propellantTonsUsed)
+    
     self._validate()
