@@ -27,14 +27,10 @@ class Engine:
   def __init__(self, *, Isp, thrust_kn, resource_flow_rates=None):
     self.Isp, self.thrust_kn = (Isp, thrust_kn)
     self.resource_flow_rates = resource_flow_rates
-    self._validate()
-    
-  def _validate(self):
-    print("validate is not implemented for Engine")
     
   def get_mass_flow_rate(self):
     if self.resource_flow_rates is None:
-      raise ValueError("flow rates were not provided")
+      raise ValueError("flow rates were not provided on Engine initialization.")
     return sum(tonnage for resource, tonnage in self.resource_flow_rates)
 
 
@@ -47,13 +43,13 @@ STOCK_ENGINES = {
 
 class Ship:
 
-  def __init__(self, *, velocity=0.0, ore_tons=0.0, lf_tons=0.0, ox_tons=0.0, dry_mass):
-    self.velocity, self.ore_tons, self.lf_tons, self.ox_tons, self.dry_mass = (velocity, ore_tons, lf_tons, ox_tons, dry_mass)
+  def __init__(self, *, velocity=0.0, ore_tons=0.0, lf_tons=0.0, ox_tons=0.0, time_burned=0.0, dry_mass):
+    self.velocity, self.ore_tons, self.lf_tons, self.ox_tons, self.dry_mass, self.time_burned = (velocity, ore_tons, lf_tons, ox_tons, dry_mass, time_burned)
     self._validate()  
 
 
   def _validate(self):
-    assert all(item >= 0 for item in (self.velocity, self.ore_tons, self.lf_tons, self.ox_tons, self.dry_mass)), "one or more of the ship's resource values or mass or velocity is/went negative."
+    assert all(item >= 0 for item in (self.velocity, self.ore_tons, self.lf_tons, self.ox_tons, self.dry_mass, self.time_burned)), "one or more of the ship's resource values or mass or velocity or time_burned is/went negative."
 
 
   def get_mass(self):
@@ -77,16 +73,16 @@ class Ship:
           (self.ox_tons + ore_tons*KSP_LFOX_COEFFICIENTS[1]),
         )
       case _:
-        raise ValueError(f"unknown mode {mode}")
+        raise ValueError(f"unknown isru mode {mode}")
     self._validate()
 
   
   def burn(self, *, propellant_tons, engine) -> None:
     if propellant_tons < 0:
-      raise ValueError()
+      raise ValueError("a zero or positive amount of propellant must be burned.")
     if isinstance(engine, tuple):
       if len(engine) != 2:
-        raise ValueError()
+        raise ValueError("invalid definition of engine")
       Isp, mode = engine
     elif isinstance(engine, Engine):
       raise NotImplementedError()
