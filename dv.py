@@ -20,6 +20,9 @@ class Resource(Enum):
   ORE = "ORE"
   MONOPROPELLANT = "MONOPROPELLANT"
   XENON_GAS = "XENON_GAS"
+LF = Resource.LIQUID_FUEL
+OX = Resource.OXIDIZER
+ORE = Resource.ORE
   
 
 class Engine:
@@ -34,8 +37,8 @@ class Engine:
 
 
 STOCK_ENGINES = {
-  "Terrier": Engine(Isp=345, thrust_kn=60, resource_flow_rates={Resource.LIQUID_FUEL: 1.596, Resource.OXIDIZER: 1.951}),
-  "Nerv": Engine(Isp=800, thrust_kn=60, resource_flow_rates={Resource.LIQUID_FUEL: 1.53}),
+  "Terrier": Engine(Isp=345, thrust_kn=60, resource_flow_rates={LF: 1.596, OX: 1.951}),
+  "Nerv": Engine(Isp=800, thrust_kn=60, resource_flow_rates={LF: 1.53}),
 }
 
 
@@ -60,18 +63,18 @@ class Ship:
   def isru(self, *, ore_tons, mode):
     if ore_tons < 0:
       raise ValueError("a zero or positive amount of ore must be used.")
-    if ore_tons > self.resource_tons[Resource.ORE]:
-      raise ValueError(f"{ore_tons} is more ore than you have, {self.resource_tons[Resource.ORE]}.")
+    if ore_tons > self.resource_tons[ORE]:
+      raise ValueError(f"{ore_tons} is more ore than you have, {self.resource_tons[ORE]}.")
     match mode:
       case "lf":
-        self.resource_tons[Resource.ORE], self.resource_tons[Resource.LIQUID_FUEL] = (self.resource_tons[Resource.ORE] - ore_tons, self.resource_tons[Resource.LIQUID_FUEL] + ore_tons)
+        self.resource_tons[ORE], self.resource_tons[LF] = (self.resource_tons[ORE] - ore_tons, self.resource_tons[LF] + ore_tons)
       case "ox":
-        self.resource_tons[Resource.ORE], self.resource_tons[Resource.OXIDIZER] = (self.resource_tons[Resource.ORE] - ore_tons, self.resource_tons[Resource.OXIDIZER] + ore_tons)
+        self.resource_tons[ORE], self.resource_tons[OX] = (self.resource_tons[ORE] - ore_tons, self.resource_tons[OX] + ore_tons)
       case "lfox":
-        self.resource_tons[Resource.ORE], self.resource_tons[Resource.LIQUID_FUEL], self.resource_tons[Resource.OXIDIZER] = (
-          self.resource_tons[Resource.ORE] - ore_tons,
-          (self.resource_tons[Resource.LIQUID_FUEL] + ore_tons*KSP_LFOX_COEFFICIENTS[0]),
-          (self.resource_tons[Resource.OXIDIZER] + ore_tons*KSP_LFOX_COEFFICIENTS[1]),
+        self.resource_tons[ORE], self.resource_tons[LF], self.resource_tons[OX] = (
+          self.resource_tons[ORE] - ore_tons,
+          (self.resource_tons[LF] + ore_tons*KSP_LFOX_COEFFICIENTS[0]),
+          (self.resource_tons[OX] + ore_tons*KSP_LFOX_COEFFICIENTS[1]),
         )
       case _:
         raise ValueError(f"unknown isru mode {mode}")
@@ -85,7 +88,7 @@ class Ship:
       if len(engine) != 2:
         raise ValueError("invalid definition of engine")
       Isp, mode = engine
-    elif isinstance(engine, Engine):
+    elif isinstance(engine, Engine): # or isinstance(engine, EngineBlock):
       raise NotImplementedError()
     else:
       raise TypeError("invalid engine or group of engines or something.")
