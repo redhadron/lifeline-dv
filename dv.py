@@ -35,42 +35,44 @@ class Engine:
 
 
 STOCK_ENGINES = {
-  "Terrier": Engine(Isp=345, thrust_kn=60, resource_flow_rates=((Resource.LIQUID_FUEL, 1.596),(Resource.OXIDIZER, 1.951))),
-  "Nerv": Engine(Isp=800, thrust_kn=60, resource_flow_rates=((Resource.LIQUID_FUEL, 1.53),)),
+  "Terrier": Engine(Isp=345, thrust_kn=60, resource_flow_rates={Resource.LIQUID_FUEL: 1.596, Resource.OXIDIZER: 1.951}),
+  "Nerv": Engine(Isp=800, thrust_kn=60, resource_flow_rates={Resource.LIQUID_FUEL: 1.53}),
 }
 
 
 
 class Ship:
 
-  def __init__(self, *, velocity=0.0, ore_tons=0.0, lf_tons=0.0, ox_tons=0.0, time_burned=0.0, dry_mass):
-    self.velocity, self.ore_tons, self.lf_tons, self.ox_tons, self.dry_mass, self.time_burned = (velocity, ore_tons, lf_tons, ox_tons, dry_mass, time_burned)
+  def __init__(self, *, velocity=0.0, resource_tons, dry_mass):
+    self.velocity, self.resource_tons, self.dry_mass = (velocity, resource_tons, dry_mass)
+    self.time_burned = 0.0
     self._validate()  
 
 
   def _validate(self):
-    assert all(item >= 0 for item in (self.velocity, self.ore_tons, self.lf_tons, self.ox_tons, self.dry_mass, self.time_burned)), "one or more of the ship's resource values or mass or velocity or time_burned is/went negative."
+    assert all(item >= 0 for item in (self.velocity, self.dry_mass, self.time_burned)), "one or more of the ship's dry mass or velocity or time_burned is/went negative."
+    assert all(tons >= 0 for resource, tons in self.resource_tons), "a resource mass is/went negative."
 
 
   def get_mass(self):
-    return self.dry_mass + self.ore_tons + self.lf_tons + self.ox_tons
+    return self.dry_mass + sum(tons for resource, tons in self.resource_tons)
 
 
   def isru(self, *, ore_tons, mode):
     if ore_tons < 0:
       raise ValueError("a zero or positive amount of ore must be used.")
-    if ore_tons > self.ore_tons:
-      raise ValueError(f"{ore_tons} is more ore than you have, {self.ore_tons}.")
+    if ore_tons > self.resource_tons[Resource.ORE]:
+      raise ValueError(f"{ore_tons} is more ore than you have, {self.resource_tons[Resource.ORE]}.")
     match mode:
       case "lf":
-        self.ore_tons, self.lf_tons = (self.ore_tons - ore_tons, self.lf_tons + ore_tons)
+        self.resource_tons[Resource.ORE], self.resource_tons[Resource.LIQUID_FUEL] = (self.resource_tons[Resource.ORE] - ore_tons, self.resource_tons[Resource.LIQUID_FUEL] + ore_tons)
       case "ox":
-        self.ore_tons, self.ox_tons = (self.ore_tons - ore_tons, self.ox_tons + ore_tons)
+        self.resource_tons[Resource.ORE], self.resource_tons[Resource.OXIDIZER] = (self.resource_tons[Resource.ORE] - ore_tons, self.resource_tons[Resource.OXIDIZER] + ore_tons)
       case "lfox":
-        self.ore_tons, self.lf_tons, self.ox_tons = (
-          self.ore_tons - ore_tons,
-          (self.lf_tons + ore_tons*KSP_LFOX_COEFFICIENTS[0]),
-          (self.ox_tons + ore_tons*KSP_LFOX_COEFFICIENTS[1]),
+        self.resource_tons[Resource.ORE], self.resource_tons[Resource.LIQUID_FUEL], self.resource_tons[Resource.OXIDIZER] = (
+          self.resource_tons[Resource.ORE] - ore_tons,
+          (self.resource_tons[Resource.LIQUID_FUEL] + ore_tons*KSP_LFOX_COEFFICIENTS[0]),
+          (self.resource_tons[Resource.OXIDIZER] + ore_tons*KSP_LFOX_COEFFICIENTS[1]),
         )
       case _:
         raise ValueError(f"unknown isru mode {mode}")
@@ -90,10 +92,12 @@ class Ship:
       raise TypeError("invalid engine or group of engines or something.")
     if Isp < 0:
       raise ValueError("Isp must be positive")
-    raise NotImplementedError()
+    raise NotImplementedError("burn will call _burn")
   
-  def _burn(self, *, resource_tons: tuple[tuple[Resource, float]], Isp, resource_flow_rates=None):
-    propellantTonsUsed = sum(tons for resource, tons in resource_tons)
+  def _burn(self, *, resource_tons, Isp, resource_flow_rates=None):
+    propellantTonsUsed = sum(tons for resource, tons in resource_tons.items())
+    # propellantTonsUsedPerSecond = sum(tons for resource, tons in resource_flow_rates.items())
     self.velocity = tsiolkovsky(Isp, self.get_mass(), self.get_mass()-propellantTonsUsed)
+    raise NotImplementedError("resource consumption")
     
     self._validate()
