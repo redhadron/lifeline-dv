@@ -31,7 +31,7 @@ class Engine:
   def get_mass_flow_rate(self):
     if self.resource_flow_rates is None:
       raise ValueError("flow rates were not provided on Engine initialization.")
-    return sum(tons for resource, tons in self.resource_flow_rates)
+    return sum(self.resource_flow_rates.values()) # in tons
 
 
 STOCK_ENGINES = {
@@ -51,11 +51,11 @@ class Ship:
 
   def _validate(self):
     assert all(item >= 0 for item in (self.velocity, self.dry_mass, self.time_burned)), "one or more of the ship's dry mass or velocity or time_burned is/went negative."
-    assert all(tons >= 0 for resource, tons in self.resource_tons), "a resource mass is/went negative."
+    assert all(tons >= 0 for tons in self.resource_tons.values()), "a resource mass is/went negative."
 
 
   def get_mass(self):
-    return self.dry_mass + sum(tons for resource, tons in self.resource_tons)
+    return self.dry_mass + sum(self.resource_tons.values())
 
 
   def isru(self, *, ore_tons, mode):
@@ -95,7 +95,7 @@ class Ship:
     raise NotImplementedError("burn will call _burn")
   
   def _burn(self, *, resource_tons, Isp, resource_flow_rates=None):
-    propellantTonsUsed = sum(tons for resource, tons in resource_tons.items())
+    propellantTonsUsed = sum(resource_tons.values())
     # propellantTonsUsedPerSecond = sum(tons for resource, tons in resource_flow_rates.items())
     self.velocity = tsiolkovsky(Isp, self.get_mass(), self.get_mass()-propellantTonsUsed)
     raise NotImplementedError("resource consumption")
