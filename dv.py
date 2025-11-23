@@ -7,12 +7,14 @@ KSP_LFOX_RATIO_PARTS = (9,11)
 KSP_LFOX_COEFFICIENTS = tuple(item/sum(KSP_LFOX_RATIO_PARTS) for item in KSP_LFOX_RATIO_PARTS) 
 STANDARD_GRAVITY = 9.80665
 
+ERROR_TOLERANCE_METERS = 1.0
+ERROR_TOLERANCE_TONS = 0.1
 
 def tsiolkovsky(Isp, m0, mf) -> float:
   assert 0 < Isp
   assert 0 < mf < m0
   return Isp*STANDARD_GRAVITY*math.log(m0/mf)
-assert abs(tsiolkovsky(300, 2.0, 1.0) - 2039) < 1
+assert abs(tsiolkovsky(300, 2.0, 1.0) - 2039) < ERROR_TOLERANCE_METERS
 
 class Resource(Enum):
   LIQUID_FUEL = "LIQUID_FUEL"
@@ -45,14 +47,14 @@ STOCK_ENGINES = {
 
 class Ship:
 
-  def __init__(self, *, velocity=0.0, resource_tons, dry_mass):
-    self.velocity, self.resource_tons, self.dry_mass = (velocity, resource_tons, dry_mass)
+  def __init__(self, *, speed=0.0, resource_tons, dry_mass):
+    self.speed, self.resource_tons, self.dry_mass = (speed, resource_tons, dry_mass)
     self.time_burned = 0.0
     self._validate()  
 
 
   def _validate(self):
-    assert all(item >= 0 for item in (self.velocity, self.dry_mass, self.time_burned)), "one or more of the ship's dry mass or velocity or time_burned is/went negative."
+    assert all(item >= 0 for item in (self.speed, self.dry_mass, self.time_burned)), "one or more of the ship's dry mass or speed or time_burned is/went negative."
     assert all(tons >= 0 for tons in self.resource_tons.values()), "a resource mass is/went negative."
 
 
@@ -96,10 +98,19 @@ class Ship:
       raise ValueError("Isp must be positive")
     raise NotImplementedError("burn will call _burn")
   
-  def _burn(self, *, resource_tons, Isp, resource_flow_rates=None):
+  def _burn(self, *, resource_tons, Isp, resource_flow_rates):
     propellantTonsUsed = sum(resource_tons.values())
-    # propellantTonsUsedPerSecond = sum(tons for resource, tons in resource_flow_rates.items())
-    self.velocity = tsiolkovsky(Isp, self.get_mass(), self.get_mass()-propellantTonsUsed)
+    if resource_flow_rates is None:
+      raise NotImplementedError("what should happen to burn time?")
+    else:
+      if not set(resource_tons.keys()) == set(resource_flow_rates.keys()):
+        raise ValueError("the resources in resource_tons and resource_flow_rates are not the same.")
+      propellantTonsUsedPerSecond = sum(resource_flow_rates.values())
+      burnTime = propellantTonsUsed / propellantTonsUsedPerSecond
+      for key, value in resource_flow_rates.items():
+        if not value - resource_tons[key] < ERROR_TOLERANCE_TONS:
+          raise ValueError("resource_flow_rates cannot account for resource_tons.")
+    self.speed += tsiolkovsky(Isp, self.get_mass(), self.get_mass()-propellantTonsUsed)
     raise NotImplementedError("resource consumption")
     
     self._validate()
