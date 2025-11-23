@@ -10,6 +10,16 @@ STANDARD_GRAVITY = 9.80665
 ERROR_TOLERANCE_METERS = 1.0
 ERROR_TOLERANCE_TONS = 0.1
 
+# helper methods -----------------------------
+
+def subtract_dictionary_vector_in_place(a, b):
+  for key, value in b.items():
+    a[key] -= value
+
+
+# end of helper methods -------------------------
+
+
 def tsiolkovsky(Isp, m0, mf) -> float:
   assert 0 < Isp
   assert 0 < mf < m0
@@ -88,7 +98,7 @@ class Ship:
       raise ValueError("a zero or positive amount of propellant must be burned.")
     if isinstance(engine, tuple):
       if len(engine) != 2:
-        raise ValueError("invalid definition of engine")
+        raise ValueError("invalid definition of engine.")
       Isp, mode = engine
     elif isinstance(engine, Engine): # or isinstance(engine, EngineBlock):
       raise NotImplementedError()
@@ -101,18 +111,20 @@ class Ship:
   def _burn(self, *, resource_tons, Isp, resource_flow_rates):
     propellantTonsUsed = sum(resource_tons.values())
     if resource_flow_rates is None:
-      raise NotImplementedError("what should happen to burn time?")
+      print("warning: no resource_flow_rates provided, time_burned will be set to None.")
+      self.time_burned = None
     else:
       if not set(resource_tons.keys()) == set(resource_flow_rates.keys()):
         raise ValueError("the resources in resource_tons and resource_flow_rates are not the same.")
       propellantTonsUsedPerSecond = sum(resource_flow_rates.values())
       burnTime = propellantTonsUsed / propellantTonsUsedPerSecond
+      if self.time_burned is not None:
+        self.time_burned += burnTime
       for key, value in resource_flow_rates.items():
         if not value - resource_tons[key] < ERROR_TOLERANCE_TONS:
           raise ValueError("resource_flow_rates cannot account for resource_tons.")
     self.speed += tsiolkovsky(Isp, self.get_mass(), self.get_mass()-propellantTonsUsed)
-    raise NotImplementedError("resource consumption")
-    
+    subtract_dictionary_vector_in_place(self.resource_tons, resource_tons)
     self._validate()
     
 _a = Ship(resource_tons={Resource.ORE:2, Resource.LIQUID_FUEL:0}, dry_mass=30)
@@ -121,4 +133,9 @@ _a.isru(ore_tons=0.9, mode="lf")
 assert _a.resource_tons[Resource.LIQUID_FUEL] == 0.9
 assert _a.resource_tons[Resource.ORE] == 1.1
 assert _a.get_mass() == 32
+assert _a.speed == 0.0
+_a._burn(resource_tons={LF:0.5}, Isp=100, resource_flow_rates={LF:0.1})
+assert _a.time_burned == 5
+assert _a.resource_tons[LF] == 0.4
+assert _a.speed > 0
 del _a

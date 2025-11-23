@@ -9,6 +9,6 @@ Todo:
 -create engine block.  
 -make it so that burn can run until a speed is reached or a resource runs out.  
 -add tests.  
--add burn time calculations.  
 Done:  
 -use the same format for resources in all arguments.  
+-add burn time calculations.  
