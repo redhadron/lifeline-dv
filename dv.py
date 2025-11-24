@@ -15,7 +15,14 @@ ERROR_TOLERANCE_TONS = 0.1
 def subtract_dictionary_vector_in_place(a, b):
   for key, value in b.items():
     a[key] -= value
+_dictVect = {5:10, 15:20}
+subtract_dictionary_vector_in_place(_dictVect, {5:1, 15:2})
+assert _dictVect == {5:9, 15:18}
+del _dictVect
 
+def scaled_dictionary_vector(input_dict, scale):
+  return {key:(value*scale) for key, value in input_dict.items()}
+assert scaled_dictionary_vector({1:2, 3:4}, 10) == {1:20, 3:40}
 
 # end of helper methods -------------------------
 
@@ -40,12 +47,22 @@ ORE = Resource.ORE
 class Engine:
 
   def __init__(self, *, Isp, thrust_kn, resource_flow_rates=None):
-    self.Isp, self.thrust_kn = (Isp, thrust_kn)
+    self._Isp, self._thrust_kn = (Isp, thrust_kn)
     assert isinstance(resource_flow_rates, dict)
-    self.resource_flow_rates = resource_flow_rates
+    self._resource_flow_rates = resource_flow_rates
+    
+  def get_Isp(self):
+    return self._Isp
+    
+  def get_thrust_kn(self):
+    return self._thrust_kn
+    
+  def get_resource_flow_rates(self):
+    return self._resource_flow_rates
     
   def get_mass_flow_rate(self):
-    return sum(self.resource_flow_rates.values()) # in tons
+    return sum(self.get_resource_flow_rates().values())
+    
 
 
 STOCK_ENGINES = {
@@ -53,7 +70,39 @@ STOCK_ENGINES = {
   "Nerv": Engine(Isp=800, thrust_kn=60, resource_flow_rates={LF: 1.53}),
 }
 
+class EngineCluster(Engine):
+  def __init__(self, template_engine, *, count, thrust_limiter):
+    # thrust limiter is a multiplier, not a percentage.
+    assert isinstance(template_engine, Engine)
+    assert isinstance(count, int)
+    assert count >= 1
+    assert thrust_limiter >= 0
+    self.template_engine, self.count, self.thrust_limiter = (template_engine, count, thrust_limiter)
+  
+  def _get_performance_multiplier(self):
+    return self.count * self.thrust_limiter
+  
+  def get_Isp(self):
+    return self.template_engine.get_Isp()
+  
+  def get_thrust_kn(self):
+    return self.template_engine.get_thrust_kn() * self._get_performance_multiplier()
+    
+  def get_resource_flow_rates(self):
+    return scaled_dictionary_vector(self.template_engine.get_resource_flow_rates(), self._get_performance_multiplier())
+  
+  # get_mass_flow_rate is inherited from Engine.
 
+_ec = EngineCluster(STOCK_ENGINES["Nerv"], count=2, thrust_limiter=1.0)
+assert _ec.get_thrust_kn() == 120
+assert _ec.get_mass_flow_rate() == 2 * STOCK_ENGINES["Nerv"].get_mass_flow_rate()
+del _ec
+
+
+class EngineBlock(Engine):
+  def __init__(self):
+    raise NotImplementedError()
+    
 
 class Ship:
 
@@ -77,7 +126,8 @@ class Ship:
     if ore_tons < 0:
       raise ValueError("a zero or positive amount of ore must be used.")
     if ore_tons > self.resource_tons[ORE]:
-      raise ValueError(f"{ore_tons} is more ore than you have, {self.resource_tons[ORE]}.")
+      raise ValueError(f"{ore_tons} is more ore than you have, {self.resource_tons[ORE]}.") 
+      #https://stackoverflow.com/questions/69642889/how-to-use-multiple-cases-in-match-switch-in-other-languages-cases-in-python-3
     match mode:
       case "lf":
         self.resource_tons[ORE], self.resource_tons[LF] = (self.resource_tons[ORE] - ore_tons, self.resource_tons[LF] + ore_tons)
@@ -89,6 +139,8 @@ class Ship:
           (self.resource_tons[LF] + ore_tons*KSP_LFOX_COEFFICIENTS[0]),
           (self.resource_tons[OX] + ore_tons*KSP_LFOX_COEFFICIENTS[1]),
         )
+      case "monopropellant":
+        raise NotImplementedError("monopropellant isru mode.")
       case _:
         raise ValueError(f"unknown isru mode {mode}.")
     self._validate()
