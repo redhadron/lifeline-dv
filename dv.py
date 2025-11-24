@@ -60,11 +60,12 @@ class Ship:
   def __init__(self, *, speed=0.0, resource_tons, dry_mass):
     self.speed, self.resource_tons, self.dry_mass = (speed, resource_tons, dry_mass)
     self.time_burned = 0.0
-    self._validate()  
+    self._validate()
 
 
   def _validate(self):
-    assert all(item >= 0 for item in (self.speed, self.dry_mass, self.time_burned)), "one or more of the ship's dry mass or speed or time_burned is/went negative."
+    assert self.time_burned is None or self.time_burned >= 0
+    assert all(item >= 0 for item in (self.speed, self.dry_mass)), "one or more of the ship's dry mass or speed is/went negative."
     assert all(tons >= 0 for tons in self.resource_tons.values()), "a resource mass is/went negative."
 
 
@@ -89,7 +90,7 @@ class Ship:
           (self.resource_tons[OX] + ore_tons*KSP_LFOX_COEFFICIENTS[1]),
         )
       case _:
-        raise ValueError(f"unknown isru mode {mode}")
+        raise ValueError(f"unknown isru mode {mode}.")
     self._validate()
 
   
@@ -111,7 +112,7 @@ class Ship:
   def _burn(self, *, resource_tons, Isp, resource_flow_rates):
     propellantTonsUsed = sum(resource_tons.values())
     if resource_flow_rates is None:
-      print("warning: no resource_flow_rates provided, time_burned will be set to None.")
+      # print("_burn: warning: no resource_flow_rates provided, time_burned will be set to None.")
       self.time_burned = None
     else:
       if not set(resource_tons.keys()) == set(resource_flow_rates.keys()):
@@ -139,3 +140,7 @@ assert _a.time_burned == 5
 assert _a.resource_tons[LF] == 0.4
 assert _a.speed > 0
 del _a
+_b = Ship(resource_tons={LF:1}, dry_mass=1)
+_b._burn(resource_tons={LF:1}, Isp=100, resource_flow_rates=None)
+assert _b.time_burned is None
+del _b
