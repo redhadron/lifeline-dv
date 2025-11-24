@@ -1,6 +1,7 @@
 
 import math
 from enum import Enum
+import operator
 
 
 KSP_LFOX_RATIO_PARTS = (9,11)
@@ -12,9 +13,20 @@ ERROR_TOLERANCE_TONS = 0.1
 
 # helper methods -----------------------------
 
-def subtract_dictionary_vector_in_place(a, b):
+def operate_on_dictionary_vector_in_place(a, b, *, operator_fun, lock_axes=True, default_value=None):
   for key, value in b.items():
-    a[key] -= value
+    if key not in a:
+      if lock_axes:
+        raise KeyError(f"axes are locked but {key} is a key not in dict a.")
+      else:
+        a[key] = default_value
+    a[key] = operator_fun(a[key], value)
+
+def add_dictionary_vector_in_place(a, b, **kwargs):
+  return operate_on_dictionary_vector_in_place(a, b, operator_fun=operator.add, **kwargs)
+  
+def subtract_dictionary_vector_in_place(a, b, **kwargs):
+  return operate_on_dictionary_vector_in_place(a, b, operator_fun=operator.sub, **kwargs)
 _dictVect = {5:10, 15:20}
 subtract_dictionary_vector_in_place(_dictVect, {5:1, 15:2})
 assert _dictVect == {5:9, 15:18}
@@ -79,17 +91,17 @@ class EngineCluster(Engine):
     assert thrust_limiter >= 0
     self.template_engine, self.count, self.thrust_limiter = (template_engine, count, thrust_limiter)
   
-  def _get_performance_multiplier(self):
+  def _get_total_performance_multiplier(self):
     return self.count * self.thrust_limiter
   
   def get_Isp(self):
     return self.template_engine.get_Isp()
   
   def get_thrust_kn(self):
-    return self.template_engine.get_thrust_kn() * self._get_performance_multiplier()
+    return self.template_engine.get_thrust_kn() * self._get_total_performance_multiplier()
     
   def get_resource_flow_rates(self):
-    return scaled_dictionary_vector(self.template_engine.get_resource_flow_rates(), self._get_performance_multiplier())
+    return scaled_dictionary_vector(self.template_engine.get_resource_flow_rates(), self._get_total_performance_multiplier())
   
   # get_mass_flow_rate is inherited from Engine.
 
@@ -100,8 +112,23 @@ del _ec
 
 
 class EngineBlock(Engine):
-  def __init__(self):
+  def __init__(self, engines):
+    assert isinstance(engines, list)
+    self.engines = engines
+    self.thrust_multiplier = 1.0
+  
+  def get_Isp(self):
     raise NotImplementedError()
+    # impl gen_track_previous, get_shared_value
+    
+  def get_thrust_kn(self):
+    return sum(engine.get_thrust_kn() for engine in self.engines)
+    
+  def get_resource_flow_rates(self):
+    result = dict()
+    for engine in self.engines:
+      add_dictionary_vector_in_place(result, engine.get_resource_flow_rates(), lock_axes=False, default_value=0)
+    return result
     
 
 class Ship:

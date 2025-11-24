@@ -3,13 +3,14 @@ This is a python module to help calculate the available Δv for any spaceship ba
 I'll add instructions if anyone is interested!
 
 Todo:  
--add engine block.  
+-finish Ship.burn.
 -kN?? unit suffixes everywhere??  
--split burn into burn and _burn.  
 -make error detection in _burn proportional.  
 -add validate method to engine.  
--make it so that burn can run until a speed is reached or a resource runs out.  
+-make it so that Ship.burn can run until a speed is reached or a resource runs out.  
 -add tests.  
 Done:  
 -use the same format for resources in all arguments.  
 -add burn time calculations.  
+-add engine block.  
+-split burn into burn and _burn.  
