@@ -54,6 +54,14 @@ class Resource(Enum):
 LF = Resource.LIQUID_FUEL
 OX = Resource.OXIDIZER
 ORE = Resource.ORE
+
+RESOURCE_KILOGRAMS_PER_UNIT = {
+  Resource.LIQUID_FUEL: 5,
+  Resource.OXIDIZER: 5,
+  Resource.MONOPROPELLANT: 4,
+  Resource.XENON_GAS: 0.1,
+  Resource.ORE: 20,
+} # https://wiki.kerbalspaceprogram.com/wiki/Resource
   
 
 class Engine:
@@ -133,7 +141,11 @@ class EngineBlock(Engine):
 
 class Ship:
 
-  def __init__(self, *, speed=0.0, resource_tons, dry_mass):
+  def __init__(self, *, speed=0.0, resource_tons=None, resource_units=None, dry_mass):
+    if resource_tons is None and resource_units is None:
+      raise ValueError("either resource_tons or resource_units must be provided.")
+    if resource_units is not None or resource_tons is None:
+      raise NotImplementedError()
     self.speed, self.resource_tons, self.dry_mass = (speed, resource_tons, dry_mass)
     self.time_burned = 0.0
     self._validate()
