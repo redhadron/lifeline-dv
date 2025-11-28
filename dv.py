@@ -67,14 +67,13 @@ RESOURCE_KILOGRAMS_PER_UNIT = {
   Resource.XENON_GAS: 0.1,
   Resource.ORE: 20,
 } # https://wiki.kerbalspaceprogram.com/wiki/Resource
-  
 
 class Engine:
 
-  def __init__(self, *, Isp, thrust_kn, resource_flow_rates=None):
+  def __init__(self, *, Isp, thrust_kn, resource_units_per_second):
     self._Isp, self._thrust_kn = (Isp, thrust_kn)
-    assert isinstance(resource_flow_rates, dict)
-    self._resource_flow_rates = resource_flow_rates
+    assert all(isinstance(key, Resource) for key in resource_units_per_second.keys())
+    self._resource_flow_rates = {key:value*RESOURCE_KILOGRAMS_PER_UNIT[key]/1000.0 for key, value in resource_units_per_second.items()}
     
   def get_Isp(self):
     return self._Isp
@@ -91,8 +90,8 @@ class Engine:
 
 
 STOCK_ENGINES = {
-  "Terrier": Engine(Isp=345, thrust_kn=60, resource_flow_rates={LF: 1.596, OX: 1.951}),
-  "Nerv": Engine(Isp=800, thrust_kn=60, resource_flow_rates={LF: 1.53}),
+  "Terrier": Engine(Isp=345, thrust_kn=60, resource_units_per_second={LF: 1.596, OX: 1.951}),
+  "Nerv": Engine(Isp=800, thrust_kn=60, resource_units_per_second={LF: 1.53}),
 }
 
 class EngineCluster(Engine):
