@@ -2,6 +2,7 @@
 import math
 from enum import Enum
 import operator
+import numbers
 
 
 KSP_LFOX_RATIO_PARTS = (9,11)
@@ -35,6 +36,10 @@ del _dictVect
 def scaled_dictionary_vector(input_dict, scale):
   return {key:(value*scale) for key, value in input_dict.items()}
 assert scaled_dictionary_vector({1:2, 3:4}, 10) == {1:20, 3:40}
+
+def assert_equal(a, b):
+  if a != b:
+    raise AssertionError(f"{a} does not equal {b}.")
 
 # end of helper methods -------------------------
 
@@ -141,32 +146,50 @@ class EngineBlock(Engine):
 
 class Ship:
 
-  def __init__(self, *, speed=0.0, resource_tons=None, resource_units=None, dry_mass):
-    if resource_tons is None and resource_units is None:
-      raise ValueError("either resource_tons or resource_units must be provided.")
-    if resource_units is not None or resource_tons is None:
-      raise NotImplementedError()
+  def __init__(self, *,
+      speed=0.0,
+      resource_tons: None | dict[Resource, numbers.Real] = None,
+      resource_units: None | dict[Resource, int] = None,
+      dry_mass=None,
+      total_mass=None):
+    
+    # calculate resource tons if necessary:
+    if resource_tons is None:
+      if resource_units is None:
+        raise ValueError("either resource_tons or resource_units must be provided.")
+      else:
+        assert isinstance(resource_units, dict)
+        resource_tons = {key:val*RESOURCE_KILOGRAMS_PER_UNIT[key]/1000 for key, val in resource_units.items()}
+    assert isinstance(resource_tons, dict)
+    
+    # calculate dry mass if necessary:
+    if dry_mass is None:
+      if total_mass is None:
+        raise ValueError("either dry_mass or total_mass must be provided.")
+      else:
+        dry_mass = total_mass - sum(resource_tons.values())
+        assert_equal(dry_mass + sum(resource_tons.values()), total_mass)
+    
     self.speed, self.resource_tons, self.dry_mass = (speed, resource_tons, dry_mass)
     self.time_burned = 0.0
     self._validate()
 
 
-  def _validate(self):
+  def _validate(self) -> None:
     assert self.time_burned is None or self.time_burned >= 0
     assert all(item >= 0 for item in (self.speed, self.dry_mass)), "one or more of the ship's dry mass or speed is/went negative."
     assert all(tons >= 0 for tons in self.resource_tons.values()), "a resource mass is/went negative."
 
 
-  def get_mass(self):
+  def get_mass(self) -> numbers.Real:
     return self.dry_mass + sum(self.resource_tons.values())
 
 
-  def isru(self, *, ore_tons, mode):
+  def isru(self, *, ore_tons: numbers.Real, mode) -> None:
     if ore_tons < 0:
       raise ValueError("a zero or positive amount of ore must be used.")
     if ore_tons > self.resource_tons[ORE]:
       raise ValueError(f"{ore_tons} is more ore than you have, {self.resource_tons[ORE]}.") 
-      #https://stackoverflow.com/questions/69642889/how-to-use-multiple-cases-in-match-switch-in-other-languages-cases-in-python-3
     match mode:
       case "lf":
         self.resource_tons[ORE], self.resource_tons[LF] = (self.resource_tons[ORE] - ore_tons, self.resource_tons[LF] + ore_tons)
@@ -185,22 +208,24 @@ class Ship:
     self._validate()
 
   
-  def burn(self, *, propellant_tons, engine) -> None:
+  def burn(self, *, propellant_tons: dict[Resource, numbers.Real], engine) -> None:
     if propellant_tons < 0:
       raise ValueError("a zero or positive amount of propellant must be burned.")
     if isinstance(engine, tuple):
       if len(engine) != 2:
         raise ValueError("invalid definition of engine.")
       Isp, mode = engine
-    elif isinstance(engine, Engine): # or isinstance(engine, EngineBlock):
+    elif isinstance(engine, Engine):
       raise NotImplementedError()
     else:
       raise TypeError("invalid engine or group of engines or something.")
     if Isp < 0:
-      raise ValueError("Isp must be positive")
+      raise ValueError("Isp must be positive.")
+      
     raise NotImplementedError("burn will call _burn")
   
-  def _burn(self, *, resource_tons, Isp, resource_flow_rates):
+  
+  def _burn(self, *, resource_tons, Isp, resource_flow_rates) -> None:
     propellantTonsUsed = sum(resource_tons.values())
     if resource_flow_rates is None:
       # print("_burn: warning: no resource_flow_rates provided, time_burned will be set to None.")
